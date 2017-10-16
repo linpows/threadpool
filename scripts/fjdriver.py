@@ -74,10 +74,13 @@ Usage: %s [options]
                     e.g.: -t basic1,psum
     -L              Run large benchmarked tests, specific to which rlogin
                     node you are on
+    -B              Provide number of runs. The output will be average of all the runs
+                    e.g. : -B 5
+    -b              Perform benchmark on every test
     """ % (sys.argv[0])
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "Varvhlp:t:o:B:gL", ["verbose", "help", "list-tests"])
+    opts, args = getopt.getopt(sys.argv[1:], "Varvhlbp:t:o:B:gL", ["verbose", "help", "list-tests"])
 except getopt.GetoptError, err:
     print str(err) # will print something like "option -a not recognized"
     usage()
@@ -85,6 +88,7 @@ except getopt.GetoptError, err:
 
 runfilter = lambda test : True
 ignore_if_not_idle = False
+benchmark_all = False
 
 for opt, arg in opts: 
     if opt == "-r":
@@ -109,6 +113,8 @@ for opt, arg in opts:
         results_file = arg
     elif opt == '-B':
         benchmark_runs = int(arg)
+    elif opt == '-b':
+        benchmark_all = True
     elif opt == '-g':
         grade_mode = True
     elif opt == '-L':
@@ -443,13 +449,13 @@ def run_tests(tests):
 
             for threads in run.thread_count:
                 if grade_mode:
-                    repeats = benchmark_runs if test.is_required or run.is_benchmarked else 1
+                    repeats = benchmark_runs if test.is_required or run.is_benchmarked or benchmark_all else 1
                     runs = []
                     for repeat in range(repeats):
                         runs.append(run_single_test(test, run, threads))
                     rundata = average_run(runs)
                     rundata['runs'] = runs
-                    if run.is_benchmarked:
+                    if run.is_benchmarked or benchmark_all:
                         benchmark_speedup(rundata, run.name)
                     perthreadresults.append(rundata)
                 else:
@@ -512,7 +518,7 @@ def print_grade_table(results, tests):
                 elif 'error' in thread_run:
                     passed = False
                     statuses.append('[ ]')
-                elif run.is_benchmarked:
+                elif run.is_benchmarked or benchmark_all:
                     statuses.append('[%.3fs]' % thread_run['realtime'])
                 else:
                     statuses.append('[X]')
