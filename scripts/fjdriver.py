@@ -80,7 +80,7 @@ Usage: %s [options]
     """ % (sys.argv[0])
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "VarvhlF:p:t:o:B:gL", ["verbose", "help", "list-tests"])
+    opts, args = getopt.getopt(sys.argv[1:], "Varvhlp:F:t:o:B:gL", ["verbose", "help", "list-tests"])
 except getopt.GetoptError, err:
     print str(err) # will print something like "option -a not recognized"
     usage()
@@ -89,7 +89,6 @@ except getopt.GetoptError, err:
 runfilter = lambda test : True
 ignore_if_not_idle = False
 from_varsys = False
-
 for opt, arg in opts: 
     if opt == "-r":
         oldrunfilter = runfilter
@@ -116,7 +115,7 @@ for opt, arg in opts:
     elif opt == '-F':
         from_varsys =  True
         file_path = arg   # file from argument
-        src_dir = os.path.dirname(file_path)
+        src_dir = file_path
         results_file = "full-results.json"
         filelist = src_dir + "/FILELIST"
         workdir = src_dir
@@ -193,6 +192,8 @@ def setup_working_directory():
         if verbose:
             print "Copying %s" % poolfile
 
+
+    print workdir
     os.chdir(workdir)
 
     if os.system("make"):
