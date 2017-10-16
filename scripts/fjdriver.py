@@ -564,8 +564,6 @@ def print_grade_table(results, tests):
     
         passed = True
         for run in test.runs:
-            if from_varsys and test_size not in run.name :
-                continue 
             statuses = []
             for threads in thread_headers:
                 if isinstance(threads, int):
@@ -580,7 +578,7 @@ def print_grade_table(results, tests):
                 elif 'error' in thread_run:
                     passed = False
                     statuses.append('[ ]')
-                elif from_varsys or run.is_benchmarked:
+                elif run.is_benchmarked:
                     statuses.append('[%.3fs]' % thread_run['realtime'])
                 else:
                     statuses.append('[X]')
