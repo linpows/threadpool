@@ -76,11 +76,11 @@ Usage: %s [options]
                     node you are on
     -B              Provide number of runs. The output will be average of all the runs
                     e.g. : -B 5
-    -b              Perform benchmark on every test
+    -F              Location of file from varsys TODO
     """ % (sys.argv[0])
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "Varvhlbp:t:o:B:gL", ["verbose", "help", "list-tests"])
+    opts, args = getopt.getopt(sys.argv[1:], "VarvhlF:p:t:o:B:gL", ["verbose", "help", "list-tests"])
 except getopt.GetoptError, err:
     print str(err) # will print something like "option -a not recognized"
     usage()
@@ -88,7 +88,7 @@ except getopt.GetoptError, err:
 
 runfilter = lambda test : True
 ignore_if_not_idle = False
-benchmark_all = False
+from_varsys = False
 
 for opt, arg in opts: 
     if opt == "-r":
@@ -113,8 +113,13 @@ for opt, arg in opts:
         results_file = arg
     elif opt == '-B':
         benchmark_runs = int(arg)
-    elif opt == '-b':
-        benchmark_all = True
+    elif opt == '-F':
+        from_varsys =  True
+        file_path = arg   # file from argument
+        src_dir = os.path.dirname(file_path)
+        results_file = "full-results.json"
+        filelist = src_dir + "/FILELIST"
+        workdir = src_dir
     elif opt == '-g':
         grade_mode = True
     elif opt == '-L':
@@ -158,32 +163,35 @@ def copyfile(src, dst):
         sys.exit(ex)
 
 def setup_working_directory():
-    if verbose:
-        print "Creating working directory",  workdir
+    if from_varsys :
+        print "Working from varsys provided dir",  workdir
+    else :
+        if verbose:
+            print "Creating working directory",  workdir
 
-    os.mkdir(workdir)
+        os.mkdir(workdir)
 
-    if verbose:
-        print "Copying files"
+        if verbose:
+            print "Copying files"
 
-    if not os.access(poolfile, os.R_OK):
-        print
-        print "I cannot find %s" % poolfile
-        usage()
-        sys.exit(2)
+        if not os.access(poolfile, os.R_OK):
+            print
+            print "I cannot find %s" % poolfile
+            usage()
+            sys.exit(2)
 
-    copyfile(poolfile, workdir + "/threadpool.c")
+        copyfile(poolfile, workdir + "/threadpool.c")
 
-    flist = open(filelist, 'r')
-    for file in flist:
-        if file.startswith("#"):
-            continue
-        file = file.strip()
-        copyfile(src_dir + "/" + file, workdir)
+        flist = open(filelist, 'r')
+        for file in flist:
+            if file.startswith("#"):
+                continue
+            file = file.strip()
+            copyfile(src_dir + "/" + file, workdir)
 
-    flist.close()
-    if verbose:
-        print "Copying %s" % poolfile
+        flist.close()
+        if verbose:
+            print "Copying %s" % poolfile
 
     os.chdir(workdir)
 
@@ -449,13 +457,13 @@ def run_tests(tests):
 
             for threads in run.thread_count:
                 if grade_mode:
-                    repeats = benchmark_runs if test.is_required or run.is_benchmarked or benchmark_all else 1
+                    repeats = benchmark_runs if test.is_required or run.is_benchmarked else 1
                     runs = []
                     for repeat in range(repeats):
                         runs.append(run_single_test(test, run, threads))
                     rundata = average_run(runs)
                     rundata['runs'] = runs
-                    if run.is_benchmarked or benchmark_all:
+                    if run.is_benchmarked:
                         benchmark_speedup(rundata, run.name)
                     perthreadresults.append(rundata)
                 else:
@@ -518,7 +526,7 @@ def print_grade_table(results, tests):
                 elif 'error' in thread_run:
                     passed = False
                     statuses.append('[ ]')
-                elif run.is_benchmarked or benchmark_all:
+                elif run.is_benchmarked:
                     statuses.append('[%.3fs]' % thread_run['realtime'])
                 else:
                     statuses.append('[X]')
