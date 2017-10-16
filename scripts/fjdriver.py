@@ -77,10 +77,12 @@ Usage: %s [options]
     -B              Provide number of runs. The output will be average of all the runs
                     e.g. : -B 5
     -F              Location of file from varsys TODO
+    -S              Test size : small, medium or large. Coupled with -F only (varsys)
+    -T              Number of threads for running the test. Coupled with -F only (varsys)
     """ % (sys.argv[0])
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "Varvhlp:F:t:o:B:gL", ["verbose", "help", "list-tests"])
+    opts, args = getopt.getopt(sys.argv[1:], "Varvhlp:F:S:T:t:o:B:gL", ["verbose", "help", "list-tests"])
 except getopt.GetoptError, err:
     print str(err) # will print something like "option -a not recognized"
     usage()
@@ -89,6 +91,7 @@ except getopt.GetoptError, err:
 runfilter = lambda test : True
 ignore_if_not_idle = False
 from_varsys = False
+test_size = "small"
 for opt, arg in opts: 
     if opt == "-r":
         oldrunfilter = runfilter
@@ -114,11 +117,22 @@ for opt, arg in opts:
         benchmark_runs = int(arg)
     elif opt == '-F':
         from_varsys =  True
-        file_path = arg   # file from argument
-        src_dir = file_path
+        dir_path = arg   # file from argument
+        if os.path.isdir(dir_path) is False :
+            print 'Given directory doesn\'t exist : %s' % dir_path
+            sys.exit() 
+        src_dir = dir_path
         results_file = "full-results.json"
         filelist = src_dir + "/FILELIST"
         workdir = src_dir
+    elif opt == '-S':
+        if arg in ["small", "medium", "large"] :
+            test_size = arg
+        else :
+            print 'Given size should be small/medium/large : %s ' % arg
+            sys.exit() 
+    elif opt == '-T':
+        threads = int(arg)
     elif opt == '-g':
         grade_mode = True
     elif opt == '-L':
@@ -474,6 +488,43 @@ def run_tests(tests):
                     perthreadresults.append(rundata)
     return results
 
+
+def run_tests_varsys(tests, test_size):
+    results = defaultdict(dict)
+
+    summary = {}
+    for test in tests:
+        if not runfilter(test):
+            if verbose:
+                print 'Skipping test: ' + test.description
+            continue
+
+        if not silent:
+            print ''
+            print 'Starting test: ' + test.description
+            print '=' * 80
+
+        results[test.name] = {}
+        for run in test.runs:
+            if test_size not in run.name :
+                continue # skip the test run, only run the specific size
+            perthreadresults = []
+            results[test.name][run.name] = perthreadresults
+
+            if grade_mode:
+                repeats = benchmark_runs
+                runs = []
+                for repeat in range(repeats):
+                    runs.append(run_single_test(test, run, threads))
+                rundata = average_run(runs)
+                rundata['runs'] = runs
+                #benchmark_speedup(rundata, run.name) TODO figure out its work
+                perthreadresults.append(rundata)
+    return results
+
+
+
+
 def print_results(results):
     print json.dumps(results, indent = 4, sort_keys = True, separators = (',', ': '))
 
@@ -489,7 +540,7 @@ def find_thread_run(perthreadresults, threadcount):
     return None
 
 def print_grade_table(results, tests):
-    thread_headers = [1, 2, (4, 5), (8, 10), (16, 20)]
+    thread_headers =  [1, 2, (4, 5), (8, 10), (16, 20)]
     if large_tests and large_node:
         thread_headers = [8, 16, 32, 64]
     elif large_tests:
@@ -513,6 +564,8 @@ def print_grade_table(results, tests):
     
         passed = True
         for run in test.runs:
+            if from_varsys and test_size not in run.name :
+                continue 
             statuses = []
             for threads in thread_headers:
                 if isinstance(threads, int):
@@ -527,7 +580,7 @@ def print_grade_table(results, tests):
                 elif 'error' in thread_run:
                     passed = False
                     statuses.append('[ ]')
-                elif run.is_benchmarked:
+                elif from_varsys or run.is_benchmarked:
                     statuses.append('[%.3fs]' % thread_run['realtime'])
                 else:
                     statuses.append('[X]')
@@ -544,6 +597,27 @@ def print_grade_table(results, tests):
         print 'You did not meet minimum requirements.'
 
 
+def print_grade_table_varsys(results, tests):
+    for test in tests:
+        if not runfilter(test):
+            continue
+        if not test.name in results:
+            print '%s: could not find test data!' % test.name
+        res = results[test.name]
+        print '%s:' % test.name.upper() + '  ' + test.description
+        for run in test.runs:
+            if test_size not in run.name :
+                continue 
+            statuses = []
+            thread_run = find_thread_run(res[run.name], threads)
+            statuses.append('[%.3fs]' % thread_run['realtime'])
+            print '  %-23s' % (run.name) + ''.join(map(lambda x: '%-10s' % x, statuses))
+
+    print '='*80
+
+
+
+
 setup_working_directory()
 check_software_engineering("threadpool.o", allowedsymbols)
 number_of_existing_processes = count_number_of_processes()
@@ -552,12 +626,17 @@ if verbose:
 
 if not ignore_if_not_idle:
     wait_for_load_to_go_down()
-    
-results = run_tests(tests)
-if verbose:
-    print_results(results)
-if not silent:
-    print_grade_table(results, tests)
+
+if from_varsys is False :
+    results = run_tests(tests)
+    if verbose:
+        print_results(results)
+    if not silent:
+        print_grade_table(results, tests)
+
+else :
+    results = run_tests_varsys(tests, test_size)  #test name will be handled inside
+    print_grade_table_varsys(results, tests)
 
 if not large_node:
     write_results_to_json(results_file)
