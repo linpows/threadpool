@@ -79,6 +79,9 @@ Usage: %s [options]
     -F              Location of file from varsys TODO
     -S              Test size : small, medium or large. Coupled with -F only (varsys)
     -T              Number of threads for running the test. Coupled with -F only (varsys)
+    Varsys usage example:
+    python fjdriver.py -g -t quicksort -F <folder location> -S <size> -T <threadcount>
+
     """ % (sys.argv[0])
 
 try:
