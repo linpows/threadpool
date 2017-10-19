@@ -39,7 +39,7 @@ large_tests = False
 grade_mode = False
 benchmark_runs = 1
 large_node = False
-
+VARSYS_FILE = "varsys_output"
 large_amd_nodes = ['fir.rlogin', 'sourwood.rlogin']
 if socket.gethostname() in large_amd_nodes:
     large_node = True
@@ -536,6 +536,28 @@ def write_results_to_json(filename):
     print >>jfile, json.dumps(results, indent = 4, sort_keys = True, separators = (',', ': '))
     jfile.close()
 
+
+# It expects only one result entry
+def write_results_to_varsys_file(filename, results, test_size, threads):
+    # print results
+    for test in tests : 
+        if not runfilter(test):
+            continue
+        for run in test.runs:
+            if test_size not in run.name :
+                continue
+            res = results[test.name]
+            # print res
+            perthreadresults = res[run.name]
+            if len(perthreadresults) > 1 :
+                print "Error. It should have only one entry"
+            thread_run = find_thread_run(perthreadresults = perthreadresults , threadcount = threads)
+            jfile = open(filename, "a")
+            print >>jfile, "{}".format( thread_run['realtime'] ) 
+            jfile.close()
+
+
+
 def find_thread_run(perthreadresults, threadcount):
     for result in perthreadresults:
         if result['nthreads'] == threadcount:
@@ -634,10 +656,10 @@ if from_varsys is False :
         print_results(results)
     if not silent:
         print_grade_table(results, tests)
-
 else :
     results = run_tests_varsys(tests, test_size)  #test name will be handled inside
     print_grade_table_varsys(results, tests)
+    write_results_to_varsys_file( filename = VARSYS_FILE, results = results, test_size = test_size, threads = threads )
 
 if not large_node:
     write_results_to_json(results_file)
