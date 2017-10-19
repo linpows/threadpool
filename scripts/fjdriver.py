@@ -39,7 +39,7 @@ large_tests = False
 grade_mode = False
 benchmark_runs = 1
 large_node = False
-VARSYS_FILE = "varsys_output"
+VARSYS_FILE = "runresults"  #to be same as RUNRESULTS in varsys project settings.py
 large_amd_nodes = ['fir.rlogin', 'sourwood.rlogin']
 if socket.gethostname() in large_amd_nodes:
     large_node = True
