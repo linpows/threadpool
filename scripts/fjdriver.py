@@ -39,7 +39,7 @@ large_tests = False
 grade_mode = False
 benchmark_runs = 1
 large_node = False
-VARSYS_FILE = "runresults"  #to be same as RUNRESULTS in varsys project settings.py
+VARSYS_FILE = "varsys_results" #"runresults"  #to be same as RUNRESULTS in varsys project settings.py
 large_amd_nodes = ['fir.rlogin', 'sourwood.rlogin']
 if socket.gethostname() in large_amd_nodes:
     large_node = True
@@ -553,9 +553,9 @@ def write_results_to_varsys_file(filename, results, test_size, threads):
                 print "Error. It should have only one entry"
             thread_run = find_thread_run(perthreadresults = perthreadresults , threadcount = threads)
             jfile = open(filename, "a")
-            print >>jfile, "{}".format( thread_run['realtime'] ) 
+            print >>jfile, thread_run['realtime']
             jfile.close()
-
+            print thread_run['realtime']
 
 
 def find_thread_run(perthreadresults, threadcount):
@@ -639,7 +639,7 @@ def print_grade_table_varsys(results, tests):
     print '='*80
 
 
-
+#TODO : compilation support for clang
 
 setup_working_directory()
 check_software_engineering("threadpool.o", allowedsymbols)
