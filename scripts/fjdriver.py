@@ -557,7 +557,8 @@ def write_results_to_varsys_file(filename, results, test_size, threads):
                 print "Error. It should have only one entry"
             thread_run = find_thread_run(perthreadresults = perthreadresults , threadcount = threads)
             for run in thread_run['runs']:
-                if 'error' in run:    #TODO : ignoring timed out data for now
+                if 'error' in run:    
+                    output.append( 20.00 )  #TODO : ignoring timed out data for now
                     continue
                 else:
                     output.append( run['realtime'] )
