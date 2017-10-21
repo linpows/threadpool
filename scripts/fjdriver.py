@@ -557,7 +557,7 @@ def write_results_to_varsys_file(filename, results, test_size, threads):
                 print "Error. It should have only one entry"
             thread_run = find_thread_run(perthreadresults = perthreadresults , threadcount = threads)
             for run in thread_run['runs']:
-                if 'error' in run:
+                if 'error' in run:    #TODO : ignoring timed out data for now
                     continue
                 else:
                     output.append( run['realtime'] )
@@ -573,7 +573,7 @@ def write_results_to_varsys_file(filename, results, test_size, threads):
             print >>jfile, str(op)
         jfile.close()
     else :
-        print "Error. There should be results"
+        print "Error. Nothing to write to file. There should be results"
 
 
 
@@ -651,8 +651,11 @@ def print_grade_table_varsys(results, tests):
         for run in test.runs:
             if test_size not in run.name :
                 continue 
+
             statuses = []
             thread_run = find_thread_run(res[run.name], threads)
+            if 'error' in thread_run :
+                continue
             statuses.append('[%.3fs]' % thread_run['realtime'])
             print '  %-23s' % (run.name) + ''.join(map(lambda x: '%-10s' % x, statuses))
 
