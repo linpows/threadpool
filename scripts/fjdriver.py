@@ -39,10 +39,11 @@ large_tests = False
 grade_mode = False
 benchmark_runs = 1
 large_node = False
-VARSYS_FILE = "varsys_results" #"runresults"  #to be same as RUNRESULTS in varsys project settings.py
+VARSYS_FILE = "runresults" #"runresults"  #to be same as RUNRESULTS in varsys project settings.py
 large_amd_nodes = ['fir.rlogin', 'sourwood.rlogin']
 if socket.gethostname() in large_amd_nodes:
     large_node = True
+
 
 # Benchmark info
 
@@ -540,6 +541,7 @@ def write_results_to_json(filename):
 # It expects only one result entry
 def write_results_to_varsys_file(filename, results, test_size, threads):
     # print results
+    output = []
     for test in tests : 
         if not runfilter(test):
             continue
@@ -552,10 +554,26 @@ def write_results_to_varsys_file(filename, results, test_size, threads):
             if len(perthreadresults) > 1 :
                 print "Error. It should have only one entry"
             thread_run = find_thread_run(perthreadresults = perthreadresults , threadcount = threads)
-            jfile = open(filename, "a")
-            print >>jfile, thread_run['realtime']
-            jfile.close()
-            print thread_run['realtime']
+            for run in thread_run['runs']:
+                if 'error' in run:
+                    continue
+                else:
+                    output.append( run['realtime'] )
+
+    if output :
+        jfile = open(filename, "a")
+        print filtered[0]
+        print >>jfile, filtered[0]
+        print len(output)
+        print >>jfile, str(len(output))
+        for op in output :
+            print op
+            print >>jfile, str(op)
+        jfile.close()
+    else :
+        print "Error. There should be results"
+
+
 
 
 def find_thread_run(perthreadresults, threadcount):
