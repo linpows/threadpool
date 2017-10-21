@@ -213,13 +213,15 @@ def setup_working_directory():
 
     print workdir
     os.chdir(workdir)
-
-    if os.system("make"):
-        if grade_mode:
-            op = open(results_file, 'w')
-            op.write(json.dumps({'error': 'did not compile'}))
-            op.close()
-        raise Exception("make failed, run 'make' in %s to see why" % workdir)
+    if from_varsys :
+        print "Skipping compilation as it will be done externally"
+    else :
+        if os.system("make"):
+            if grade_mode:
+                op = open(results_file, 'w')
+                op.write(json.dumps({'error': 'did not compile'}))
+                op.close()
+            raise Exception("make failed, run 'make' in %s to see why" % workdir)
 
 def check_software_engineering(objfile, allowedsymbols):
     hex = "[0-9A-Fa-f]{8,16}"
