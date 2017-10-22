@@ -512,6 +512,14 @@ def run_tests_varsys(tests, test_size):
 
         results[test.name] = {}
         for run in test.runs:
+            if  "nqueens" in run.name :
+                if test_size == "small" :
+                    test_size = "11"
+                elif test_size == "medium" :
+                    test_size = "12"
+                elif test_size == "large" :
+                    test_size = "13"
+
             if test_size not in run.name :
                 continue # skip the test run, only run the specific size
             perthreadresults = []
@@ -548,6 +556,14 @@ def write_results_to_varsys_file(filename, results, test_size, threads):
         if not runfilter(test):
             continue
         for run in test.runs:
+            if  "nqueens" in run.name :
+                if test_size == "small" :
+                    test_size = "11"
+                elif test_size == "medium" :
+                    test_size = "12"
+                elif test_size == "large" :
+                    test_size = "13"
+
             if test_size not in run.name :
                 continue
             res = results[test.name]
@@ -650,6 +666,14 @@ def print_grade_table_varsys(results, tests):
         res = results[test.name]
         print '%s:' % test.name.upper() + '  ' + test.description
         for run in test.runs:
+            if  "nqueens" in run.name :
+                if test_size == "small" :
+                    test_size = "11"
+                elif test_size == "medium" :
+                    test_size = "12"
+                elif test_size == "large" :
+                    test_size = "13"
+                        
             if test_size not in run.name :
                 continue 
 
