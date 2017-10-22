@@ -573,8 +573,9 @@ def write_results_to_varsys_file(filename, results, test_size, threads):
                 print "Error. It should have only one entry"
             thread_run = find_thread_run(perthreadresults = perthreadresults , threadcount = threads)
             for run in thread_run['runs']:
+                timeout =  run['command'].split()[1]
                 if 'error' in run:    
-                    output.append( 20.00 )  #TODO : ignoring timed out data for now
+                    output.append( timeout )  #TODO : ignoring timed out data for now
                     continue
                 else:
                     output.append( run['realtime'] )
@@ -657,7 +658,7 @@ def print_grade_table(results, tests):
         print 'You did not meet minimum requirements.'
 
 
-def print_grade_table_varsys(results, tests):
+def print_grade_table_varsys(results, tests, test_size):
     for test in tests:
         if not runfilter(test):
             continue
@@ -673,7 +674,7 @@ def print_grade_table_varsys(results, tests):
                     test_size = "12"
                 elif test_size == "large" :
                     test_size = "13"
-                        
+
             if test_size not in run.name :
                 continue 
 
@@ -685,9 +686,6 @@ def print_grade_table_varsys(results, tests):
             print '  %-23s' % (run.name) + ''.join(map(lambda x: '%-10s' % x, statuses))
 
     print '='*80
-
-
-#TODO : compilation support for clang
 
 setup_working_directory()
 check_software_engineering("threadpool.o", allowedsymbols)
@@ -706,7 +704,7 @@ if from_varsys is False :
         print_grade_table(results, tests)
 else :
     results = run_tests_varsys(tests, test_size)  #test name will be handled inside
-    print_grade_table_varsys(results, tests)
+    print_grade_table_varsys(results, tests, test_size)
     write_results_to_varsys_file( filename = VARSYS_FILE, results = results, test_size = test_size, threads = threads )
 
 if not large_node:
