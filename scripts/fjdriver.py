@@ -294,6 +294,12 @@ def wait_for_load_to_go_down():
         nprocs, load = get_load_average()
         if nprocs == 0 and load < 1.0:
             break
+        count = 0
+        for i in range(10) :
+            nprocs, load = get_load_average()
+            count = count + 1 if nprocs > 0 else count
+        if count < 2 :  #good to run
+            break
 
         print "Warning. There are other %d processes running on this machine, loadavg %f." % (nprocs, load)
         print "Sleeping for 1 second.  Use the -a switch to run the benchmarks regardless."
@@ -520,7 +526,16 @@ def run_tests_varsys(tests, test_size):
                 elif test_size == "large" :
                     test_size = "13"
 
+            if  "fibonacci" in run.name :
+                if test_size == "small" :
+                    test_size = "30"
+                elif test_size == "medium" :
+                    test_size = "30"
+                elif test_size == "large" :
+                    test_size = "38"  #TODO : disable large for fibonacci
+
             if test_size not in run.name :
+                print run.name
                 continue # skip the test run, only run the specific size
             perthreadresults = []
             results[test.name][run.name] = perthreadresults
@@ -563,6 +578,14 @@ def write_results_to_varsys_file(filename, results, test_size, threads):
                     test_size = "12"
                 elif test_size == "large" :
                     test_size = "13"
+
+            if  "fibonacci" in run.name :
+                if test_size == "small" :
+                    test_size = "30"
+                elif test_size == "medium" :
+                    test_size = "30"
+                elif test_size == "large" :
+                    test_size = "38"  #TODO : disable large for fibonacci
 
             if test_size not in run.name :
                 continue
