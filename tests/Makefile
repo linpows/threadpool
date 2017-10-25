@@ -14,7 +14,7 @@ CFLAGS=-Wall -O3 -Werror -Wmissing-prototypes -fopenmp -std=gnu11
 #CFLAGS=-Wall -O0 -g -Werror -Wmissing-prototypes -std=gnu11
 
 #CXXFLAGS=-Wall -O3 -Werror -fopenmp
-CXXFLAGS=-Wall -g -Werror -fopenmp
+CXXFLAGS=-Wall -g -Werror #-fopenmp
 
 LDLIBS=-lpthread -lrt
 
