@@ -8,11 +8,13 @@
 #
 # https://git-scm.com/docs/pretty-formats
 version = "$Format:%H committed by %cn$"
-
+MAGIC_LOAD_NUMBER = 17 #in wendy nodes, atleast these many processes where there
 #
 import getopt, sys, os, subprocess, signal, re, json, resource, time, socket
 from datetime import datetime
 from collections import namedtuple, defaultdict
+
+
 
 # add location of this script to python sys.path
 # add directory in which script is located to python path
@@ -294,15 +296,19 @@ def wait_for_load_to_go_down():
         nprocs, load = get_load_average()
         if nprocs == 0 and load < 1.0:
             break
+
         count = 0
         for i in range(10) :
             nprocs, load = get_load_average()
             count = count + 1 if nprocs > 0 else count
-        if count < 2 :  #good to run
+        if count <= MAGIC_LOAD_NUMBER :  #good to run
             break
 
+        with open("tats", "a") as f :
+            print >>f, "There are other %d processes running on this machine, loadavg %f." % (nprocs, load)
         print "Warning. There are other %d processes running on this machine, loadavg %f." % (nprocs, load)
         print "Sleeping for 1 second.  Use the -a switch to run the benchmarks regardless."
+
         time.sleep(1.0)
 
 # run tests
