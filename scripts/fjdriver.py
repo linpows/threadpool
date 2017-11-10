@@ -8,7 +8,7 @@
 #
 # https://git-scm.com/docs/pretty-formats
 version = "$Format:%H committed by %cn$"
-MAGIC_LOAD_NUMBER = 17 #in wendy nodes, atleast these many processes where there
+MAGIC_LOAD_NUMBER = 1 #in wendy nodes, atleast these many processes where there
 #
 import getopt, sys, os, subprocess, signal, re, json, resource, time, socket
 from datetime import datetime
