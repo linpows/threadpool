@@ -5,9 +5,8 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <semaphore.h>
-#include "threadpool.h"
 #include "list.h"
-
+#include "threadpool.h"
 
 enum f_status {
     UNSCHEDULED, EXECUTING, DONE
@@ -191,7 +190,7 @@ struct thread_pool * thread_pool_new(int nthreads) {
 		list_push_front(&tp->thread_list, &new_thread->elem);
 		
 		pthread_create(&new_thread->id, NULL, thread_path, tp);
-		i = tp->numThreads;
+		i--;
 	}
 	curr_thread = NULL;
 	pthread_mutex_unlock(&tp->pool_lock);
