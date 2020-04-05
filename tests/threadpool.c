@@ -4,11 +4,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
-<<<<<<< HEAD
 #include <semaphore.h>
-=======
-
->>>>>>> 8b60ba08a4360f8eff6a105b1086fb6017f9aa67
 #include "threadpool.h"
 #include "list.h"
 
@@ -132,7 +128,7 @@ struct future * thread_pool_submit(struct thread_pool *pool,
 	
 	struct future * new_future;
 	new_future = malloc(sizeof(struct future));
-	pthread_cond_init(&(new_future->finished, NULL));
+	pthread_cond_init(&(new_future->s, NULL));
 	
 	new_future->status = UNSCHEDULED;
 	new_future->task = task;
@@ -249,15 +245,15 @@ static void * thread_path(void * arg){
  * Returns the value returned by this task.
  */
 void * future_get(struct future * f){
-	sem_wait(&(f->done));
-	sem_post(&(f->got));
-	return f->data;
+	sem_wait(&f->done);
+	sem_post(&f->got);
+	return f->returnVal;
 }
 
 /* Deallocate this future.  Must be called after future_get() */
 void future_free(struct future *) {
-	sem_wait(&(f->got));
-	free(&(f->data));
+	sem_wait(&f->got);
+	free(&f->data);
 	free(f);
 	f = NULL;
 }
@@ -269,6 +265,13 @@ void future_free(struct future *) {
  *
  * Deallocate the thread pool object before returning. 
  */
-void thread_pool_shutdown_and_destroy(struct thread_pool *){
-	//TODO
+void thread_pool_shutdown_and_destroy(struct thread_pool * pool){
+	pthread_mutex_lock(&pool->pool_lock);
+	pool->blowUp = true;
+	pthread_cond_broadcast(&pool->todo_cond);
+	pthread_mutex_unlock(&pool->pool_lock);
+	for(i = 0; i < pool->thread_count; i++) {
+		pthread_join(pool->threads[i], NULL;
+    }
+	free(pool);
 }
