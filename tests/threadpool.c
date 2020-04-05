@@ -15,14 +15,13 @@ enum f_status {
 
 struct future{
 	//the pool this Future is under
-    struct Thread_pool *pool;
+    struct thread_pool *pool;
 	// flags
-    f_status status; 
+    enum f_status status; 
     sem_t done;
     sem_t got;
     //assoc. task and its parameters
 	fork_join_task_t task;
-	pthread_cond_t finished;
 	//data storage
 	void * data;
 	void * returnVal;
@@ -78,6 +77,94 @@ struct thread_pool {
 
 static __thread struct thread * curr_thread;
 
+//body of a thread
+static void * thread_path(void * arg){
+	struct thread_pool * pool = (struct thread_pool *) arg;
+	//wait for all threads to be created
+	//		TODO MAKE SEMAPHORE
+	
+	pthread_mutex_lock(&pool->pool_lock);
+	pthread_t id = pthread_self();
+	struct list_elem * t_elem = list_begin(&(pool->thread_list));
+	struct thread * t = NULL;
+	while(t_elem != list_end(&(pool->thread_list))){
+		t = list_entry(t_elem, struct thread, elem);
+		
+		if(id == t->id) {
+			curr_thread = t;
+			break;
+		} else {
+			t_elem = list_next(t_elem);
+		}
+	}
+	while(1) {
+		while(pool->numWork != 0 && !pool->blowUp){
+			pthread_cond_wait(&pool->todo_cond, &pool->pool_lock);
+		}
+		if(pool->blowUp){
+			break;
+		}
+		
+		
+		struct list_elem * task = NULL;
+		
+		if(list_empty(&curr_thread->queue)){
+			if(list_empty(&pool->queue)){
+				//stealing case
+				struct list_elem * telem = list_begin(&pool->thread_list);
+				struct thread* iterator_thread;
+				///find the first non-empty thread queue and 
+				///take a task from the back
+				while(telem != list_end(&(pool->thread_list))){
+					iterator_thread = list_entry(telem, struct thread, elem);
+					if(!list_empty(&(iterator_thread->queue))) {
+						task = list_pop_back(&iterator_thread->queue);
+						break;
+					} else {
+						telem = list_next(t_elem);
+					}
+				}
+			}
+			else{
+				task = list_pop_front(&pool->queue);
+			}
+		}
+		else {
+			task = list_pop_front(&curr_thread->queue);
+		}
+		
+		//task is not either found or NULL
+		if (task == NULL){
+			pool->blowUp = true;
+			break;
+		}
+		
+		//future is found
+		struct future * futu = list_entry(task, struct future, elem);
+		futu->status = EXECUTING;
+		pool->numWork--;
+		pthread_mutex_unlock(&pool->pool_lock);
+		
+		//execute here then lock it back up
+		futu->returnVal = futu->task(pool, futu->data);
+		
+		pthread_mutex_lock(&pool->pool_lock);
+		futu->status = DONE;
+		sem_post(&futu->done);
+		
+		//unlock and lock back up to give other threads 
+		//a chance to execute
+		pthread_mutex_unlock(&pool->pool_lock);
+		pthread_mutex_lock(&pool->pool_lock);
+	}
+	
+	//fin
+	pthread_mutex_unlock(&pool->pool_lock);
+	pthread_exit(NULL);
+	return (NULL);
+	
+}
+
 /* Create a new thread pool with no more than n threads. */
 struct thread_pool * thread_pool_new(int nthreads) {
 	struct thread_pool * tp;
@@ -88,7 +175,7 @@ struct thread_pool * thread_pool_new(int nthreads) {
 	pthread_cond_init(&tp->sitting_cond, NULL);
 	
 	list_init(&(tp->queue));
-	list_init(&(tp->thread_list))
+	list_init(&(tp->thread_list));
 	tp->blowUp = false;
 	tp->numThreads = nthreads;
 	tp->numWork = 0;
@@ -96,7 +183,7 @@ struct thread_pool * thread_pool_new(int nthreads) {
 	//lock the pool
 	pthread_mutex_lock(&(tp->pool_lock));
 	//iterate through and create desired number of threads
-	int i = tp->numThreadsl
+	int i = tp->numThreads;
 	while(i != 0){
 		struct thread * new_thread;
 		new_thread = malloc(sizeof(struct thread));
@@ -104,7 +191,7 @@ struct thread_pool * thread_pool_new(int nthreads) {
 		list_push_front(&tp->thread_list, &new_thread->elem);
 		
 		pthread_create(&new_thread->id, NULL, thread_path, tp);
-		
+		i = tp->numThreads;
 	}
 	curr_thread = NULL;
 	pthread_mutex_unlock(&tp->pool_lock);
@@ -128,7 +215,8 @@ struct future * thread_pool_submit(struct thread_pool *pool,
 	
 	struct future * new_future;
 	new_future = malloc(sizeof(struct future));
-	pthread_cond_init(&(new_future->s, NULL));
+	sem_init(&new_future->done, 0, 0);
+	sem_init(&new_future->got, 0, 0);
 	
 	new_future->status = UNSCHEDULED;
 	new_future->task = task;
@@ -138,10 +226,10 @@ struct future * thread_pool_submit(struct thread_pool *pool,
 	
 	//add to either main pool or this theads pool
 	if(curr_thread != NULL) {
-		list_push_front(&curr_thread->queue);
+		list_push_front(&curr_thread->queue, &new_future->elem);
 	}
 	else {
-		list_push_back(&pool->queue, &new_future->elem)
+		list_push_back(&pool->queue, &new_future->elem);
 	}
 	
 	//add to current number of jobs
@@ -152,93 +240,6 @@ struct future * thread_pool_submit(struct thread_pool *pool,
 	return new_future;
 }
 
-//body of a thread
-static void * thread_path(void * arg){
-	struct thread_pool * pool = (struct thread_pool *) arg;
-	//wait for all threads to be created
-	//		TODO MAKE SEMAPHORE
-	
-	pthread_mutex_lock(&pool->pool_lock);
-	pthread_t id = pthread_self();
-	struct list_elem * t_elem = list_begin(&(pool->thread_list))
-	struct thread * t = NULL;
-	while(t_elem != list_end(&(pool->thread_list))){
-		t = list_entry(t_elem, struct thread, elem);
-		
-		if(id == t->id) {
-			curr_thread = t;
-			break;
-		} else {
-			t_elem = list_next(t_elem);
-		}
-	}
-	while(1) {
-		while(numWork != 0 && !pool->blowUp){
-			pthread_cond_wait(&pool->todo_cond), &pool->pool_lock;
-		}
-		if(pool->blowUp){
-			break;
-		}
-		
-		
-		struct list_elem * task = NULL;
-		
-		if(list_empty(&curr_thread->queue)){
-			if(list_empty(&pool->queue)){
-				//stealing case
-				struct list_elem * telem = list_begin(&pool);
-				struct thread iterator_thread;
-				///find the first non-empty thread queue and 
-				///take a task from the back
-				while(telem != list_end(&(pool->thread_list))){
-					iterator_thread = list_entry(telem, struct thread, elem);
-					if(!list_empty(&(iterator_thread->queue))) {
-						task = list_pop_back(&iterator_thread->queue));
-						break;
-					} else {
-						telem = list_next(t_elem);
-					}
-				}
-			}
-			else{
-				task = list_pop_front(&pool->global_queue);
-			}
-		}
-		else {
-			task = list_pop_front(&curr_thread->queue)
-		}
-		
-		//task is not either found or NULL
-		if (task == NULL){
-			pool->shutdown = true;
-			break;
-		}
-		
-		//future is found
-		struct future * futu = list_entry(task, struct future, elem);
-		futu->status = EXECUTING;
-		pool->numWork--;
-		pthread_mutex_unlock(&pool->pool_lock);
-		
-		//execute here then lock it back up
-		futu->result = futu->task(pool, f->data);
-		
-		pthread_mutex_lock(&pool->pool_lock);
-		futu->status = DONE;
-		pthread_cond_signal(&futu->finished);
-		
-		//unlock and lock back up to give other threads 
-		//a chance to execute
-		pthread_mutex_unlock(&pool->pool_lock);
-		pthread_mutex_t_lock(&pool->pool_lock);
-	}
-	
-	//fin
-	pthread_mutex_unlock(&pool->pool_lock);
-	pthread_exit(NULL);
-	return (NULL);
-	
-}
 /* Make sure that the thread pool has completed the execution
  * of the fork join task this future represents.
  *
@@ -251,7 +252,7 @@ void * future_get(struct future * f){
 }
 
 /* Deallocate this future.  Must be called after future_get() */
-void future_free(struct future *) {
+void future_free(struct future * f) {
 	sem_wait(&f->got);
 	free(&f->data);
 	free(f);
@@ -270,8 +271,9 @@ void thread_pool_shutdown_and_destroy(struct thread_pool * pool){
 	pool->blowUp = true;
 	pthread_cond_broadcast(&pool->todo_cond);
 	pthread_mutex_unlock(&pool->pool_lock);
-	for(i = 0; i < pool->thread_count; i++) {
-		pthread_join(pool->threads[i], NULL;
+	struct list_elem* e; e = list_begin(&pool->thread_list);
+	for(e = list_begin(&pool->thread_list); e != list_end(&pool->thread_list); e = list_next(e)) {
+		pthread_join(list_entry(e, struct thread, elem)->id, NULL);
     }
 	free(pool);
 }
