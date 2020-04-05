@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <semaphore.h>
 #include "threadpool.h"
 #include "list.h"
 
@@ -18,6 +19,8 @@ typedef struct {
 	// flags
     __thread int number;
     f_status status; 
+    sem_t done;
+    sem_t got;
     //assoc. task and its parameters
 	fork_join_task_t task;
 	void * data;
@@ -106,14 +109,18 @@ struct future * thread_pool_submit(struct thread_pool *pool,
  *
  * Returns the value returned by this task.
  */
-void * future_get(struct future *){
-
-	return NULL;
+void * future_get(struct future * f){
+	sem_wait(&(f->done));
+	sem_post(&(f->got));
+	return f->data;
 }
 
 /* Deallocate this future.  Must be called after future_get() */
 void future_free(struct future *) {
-	
+	sem_wait(&(f->got));
+	free(&(f->data));
+	free(f);
+	f = NULL;
 }
 
 /* 
