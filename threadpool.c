@@ -39,6 +39,7 @@ typedef struct thread {
 struct thread_pool {	
 	size_t numWork;
 	size_t numThreads;
+	uint16_t num_threads_initialized;
 	// if true destroy
 	bool blowUp;
 	struct list queue;
@@ -81,9 +82,9 @@ static __thread struct thread * curr_thread;
 static void * thread_path(void * arg){
 	struct thread_pool * pool = (struct thread_pool *) arg;
 	//wait for all threads to be created
-	//		TODO MAKE SEMAPHORE
-	
 	pthread_mutex_lock(&pool->pool_lock);
+	pool->num_threads_initialized+=1;
+	
 	pthread_t id = pthread_self();
 	struct list_elem * t_elem = list_begin(&(pool->thread_list));
 	struct thread * t = NULL;
@@ -169,7 +170,6 @@ static void * thread_path(void * arg){
 struct thread_pool * thread_pool_new(int nthreads) {
 	struct thread_pool * tp;
 	tp = malloc(sizeof(struct thread_pool));
-	
 	pthread_mutex_init(&tp->pool_lock, NULL);
 	pthread_cond_init(&tp->todo_cond, NULL);
 	pthread_cond_init(&tp->sitting_cond, NULL);
@@ -195,7 +195,11 @@ struct thread_pool * thread_pool_new(int nthreads) {
 	}
 	curr_thread = NULL;
 	pthread_mutex_unlock(&tp->pool_lock);
-
+	
+	while(tp->num_threads_initialized != tp->numThreads){
+		//wait untill all threads are initialized
+	}
+	
 	return tp;
 }
 
