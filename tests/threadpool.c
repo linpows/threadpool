@@ -38,17 +38,16 @@ typedef struct thread {
 struct thread_pool {	
 	size_t numWork;
 	size_t numThreads;
-	uint16_t num_threads_initialized;
 	// if true destroy
 	bool blowUp;
 	struct list queue;
 	
+	//used to wait untill all threads are created to start execution
+	pthread_barrier_t wait_for_threads;
 	//single lock for pool
 	pthread_mutex_t pool_lock;
 	//condition that there are futures in the queue to be processed
 	pthread_cond_t todo_cond;
-	//condition that there are no threads currently processing
-	pthread_cond_t sitting_cond;
 	
 	//array of all thread structs
 	struct list thread_list;
@@ -81,8 +80,9 @@ static __thread struct thread * curr_thread;
 static void * thread_path(void * arg){
 	struct thread_pool * pool = (struct thread_pool *) arg;
 	//wait for all threads to be created
+	pthread_barrier_wait(&pool->wait_for_threads);
+	
 	pthread_mutex_lock(&pool->pool_lock);
-	pool->num_threads_initialized+=1;
 	
 	pthread_t id = pthread_self();
 	struct list_elem * t_elem = list_begin(&(pool->thread_list));
@@ -100,8 +100,7 @@ static void * thread_path(void * arg){
 	}
 	while(1) {
 		
-		
-		while(pool->numWork != 0 && !pool->blowUp){
+		while(pool->numWork == 0 && !pool->blowUp){
 			pthread_cond_wait(&pool->todo_cond, &pool->pool_lock);
 		}
 		if(pool->blowUp){
@@ -172,9 +171,9 @@ static void * thread_path(void * arg){
 struct thread_pool * thread_pool_new(int nthreads) {
 	struct thread_pool * tp;
 	tp = malloc(sizeof(struct thread_pool));
+	pthread_barrier_init(&tp->wait_for_threads, NULL, nthreads + 1);
 	pthread_mutex_init(&tp->pool_lock, NULL);
 	pthread_cond_init(&tp->todo_cond, NULL);
-	pthread_cond_init(&tp->sitting_cond, NULL);
 	
 	list_init(&(tp->queue));
 	list_init(&(tp->thread_list));
@@ -198,9 +197,7 @@ struct thread_pool * thread_pool_new(int nthreads) {
 	curr_thread = NULL;
 	pthread_mutex_unlock(&tp->pool_lock);
 	
-	while(tp->num_threads_initialized != tp->numThreads){
-		//wait untill all threads are initialized
-	}
+	pthread_barrier_wait(&tp->wait_for_threads);
 	
 	return tp;
 }
