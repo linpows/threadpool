@@ -87,6 +87,7 @@ static void * thread_path(void * arg){
 	pthread_t id = pthread_self();
 	struct list_elem * t_elem = list_begin(&(pool->thread_list));
 	struct thread * t = NULL;
+	//setup this thread
 	while(t_elem != list_end(&(pool->thread_list))){
 		t = list_entry(t_elem, struct thread, elem);
 		
@@ -98,6 +99,8 @@ static void * thread_path(void * arg){
 		}
 	}
 	while(1) {
+		
+		
 		while(pool->numWork != 0 && !pool->blowUp){
 			pthread_cond_wait(&pool->todo_cond, &pool->pool_lock);
 		}
