@@ -125,7 +125,7 @@ static void * thread_path(void * arg){
 						task = list_pop_back(&iterator_thread->queue);
 						break;
 					} else {
-						telem = list_next(t_elem);
+						telem = list_next(telem);
 					}
 				}
 			}
