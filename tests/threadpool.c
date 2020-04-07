@@ -30,6 +30,8 @@ struct future{
 
 typedef struct thread {
 	pthread_t id;
+	//the pool this thread is in
+    struct thread_pool *pool;
 	//queue of this threads tasks
 	struct list queue;
 	struct list_elem elem;
@@ -93,6 +95,7 @@ static void * thread_path(void * arg){
 		
 		if(id == t->id) {
 			curr_thread = t;
+			t->pool = pool;
 			break;
 		} else {
 			t_elem = list_next(t_elem);
@@ -249,7 +252,26 @@ struct future * thread_pool_submit(struct thread_pool *pool,
  * Returns the value returned by this task.
  */
 void * future_get(struct future * f){
-	sem_wait(&f->done);
+	pthread_mutex_lock(&f->pool->pool_lock);
+	
+	// help if future is in scheule and same thread pool
+	if(f->status == UNSCHEDULED && curr_thread != NULL && curr_thread->pool == f->pool) {
+		f->status = EXECUTING;
+		f->pool->numWork--;
+		list_remove(&f->elem);
+		pthread_mutex_unlock(&f->pool->pool_lock);
+		
+		f->returnVal = f->task(f->pool, f->data);
+		
+		pthread_mutex_lock(&f->pool->pool_lock);
+		f->status = DONE;
+		sem_post(&f->done);
+		pthread_mutex_unlock(&f->pool->pool_lock);
+	}
+	else {
+		pthread_mutex_unlock(&f->pool->pool_lock);
+		sem_wait(&f->done);
+	}
 	sem_post(&f->got);
 	return f->returnVal;
 }
