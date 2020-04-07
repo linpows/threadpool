@@ -5,9 +5,8 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <semaphore.h>
-#include "threadpool.h"
 #include "list.h"
-
+#include "threadpool.h"
 
 enum f_status {
     UNSCHEDULED, EXECUTING, DONE
@@ -43,12 +42,12 @@ struct thread_pool {
 	bool blowUp;
 	struct list queue;
 	
+	//used to wait untill all threads are created to start execution
+	pthread_barrier_t wait_for_threads;
 	//single lock for pool
 	pthread_mutex_t pool_lock;
 	//condition that there are futures in the queue to be processed
 	pthread_cond_t todo_cond;
-	//condition that there are no threads currently processing
-	pthread_cond_t sitting_cond;
 	
 	//array of all thread structs
 	struct list thread_list;
@@ -81,12 +80,14 @@ static __thread struct thread * curr_thread;
 static void * thread_path(void * arg){
 	struct thread_pool * pool = (struct thread_pool *) arg;
 	//wait for all threads to be created
-	//		TODO MAKE SEMAPHORE
+	pthread_barrier_wait(&pool->wait_for_threads);
 	
 	pthread_mutex_lock(&pool->pool_lock);
+	
 	pthread_t id = pthread_self();
 	struct list_elem * t_elem = list_begin(&(pool->thread_list));
 	struct thread * t = NULL;
+	//setup this thread
 	while(t_elem != list_end(&(pool->thread_list))){
 		t = list_entry(t_elem, struct thread, elem);
 		
@@ -98,7 +99,7 @@ static void * thread_path(void * arg){
 		}
 	}
 	while(1) {
-		while(pool->numWork != 0 && !pool->blowUp){
+		while(pool->numWork == 0 && !pool->blowUp){
 			pthread_cond_wait(&pool->todo_cond, &pool->pool_lock);
 		}
 		if(pool->blowUp){
@@ -170,9 +171,9 @@ struct thread_pool * thread_pool_new(int nthreads) {
 	struct thread_pool * tp;
 	tp = malloc(sizeof(struct thread_pool));
 	
+	pthread_barrier_init(&tp->wait_for_threads, NULL, nthreads + 1);
 	pthread_mutex_init(&tp->pool_lock, NULL);
 	pthread_cond_init(&tp->todo_cond, NULL);
-	pthread_cond_init(&tp->sitting_cond, NULL);
 	
 	list_init(&(tp->queue));
 	list_init(&(tp->thread_list));
@@ -191,11 +192,13 @@ struct thread_pool * thread_pool_new(int nthreads) {
 		list_push_front(&tp->thread_list, &new_thread->elem);
 		
 		pthread_create(&new_thread->id, NULL, thread_path, tp);
-		i = tp->numThreads;
+		i--;
 	}
 	curr_thread = NULL;
 	pthread_mutex_unlock(&tp->pool_lock);
-
+	
+	pthread_barrier_wait(&tp->wait_for_threads);
+	
 	return tp;
 }
 
@@ -254,7 +257,7 @@ void * future_get(struct future * f){
 /* Deallocate this future.  Must be called after future_get() */
 void future_free(struct future * f) {
 	sem_wait(&f->got);
-	free(&f->data);
+	//free(&f->data);
 	free(f);
 	f = NULL;
 }
