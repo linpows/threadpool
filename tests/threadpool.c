@@ -257,7 +257,7 @@ void * future_get(struct future * f){
 /* Deallocate this future.  Must be called after future_get() */
 void future_free(struct future * f) {
 	sem_wait(&f->got);
-	free(&f->data);
+	//free(&f->data);
 	free(f);
 	f = NULL;
 }
