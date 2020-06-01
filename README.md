@@ -1,4 +1,6 @@
-threadpool module
+# Threadpool
+
+threadpool module for use in programs
 
 to use in program:
 ```
